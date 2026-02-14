@@ -1,0 +1,56 @@
+trigger: none   # IMPORTANT → manual run for demo
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  request_id: "SNOW-DEMO-001"
+
+stages:
+
+# -------------------------
+# Terraform Stage
+# -------------------------
+- stage: Terraform
+  jobs:
+  - job: Terraform_Run
+    steps:
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - script: |
+        cd terraform
+        terraform init -backend=false
+      displayName: "Terraform Init"
+
+    - script: |
+        cd terraform
+        terraform validate
+      displayName: "Terraform Validate"
+
+    - script: |
+        cd terraform
+        terraform plan -var="request_id=$(request_id)"
+      displayName: "Terraform Plan"
+
+
+# -------------------------
+# Ansible Stage
+# -------------------------
+- stage: Ansible
+  dependsOn: Terraform
+  jobs:
+  - job: Ansible_Run
+    steps:
+
+    - script: |
+        sudo apt update
+        sudo apt install -y ansible
+      displayName: "Install Ansible"
+
+    - script: |
+        cd ansible
+        ansible-playbook -i inventory.ini playbook.yml
+      displayName: "Run Ansible"

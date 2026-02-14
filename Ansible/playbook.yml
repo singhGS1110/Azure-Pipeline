@@ -1,0 +1,15 @@
+---
+- name: Config Mock Execution
+  hosts: local
+  gather_facts: no
+
+  tasks:
+
+    - name: Show pipeline execution
+      debug:
+        msg: "Ansible executed successfully"
+
+    - name: Create config mock file
+      copy:
+        dest: /tmp/config_mock.txt
+        content: "Ansible configuration completed"
