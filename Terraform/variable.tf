@@ -1,4 +1,2 @@
-variable "request_id" {
-  type    = string
-  default = "SNOW-TEST-001"
-}
+variable "rg_name" {}
+variable "vm_name" {}
