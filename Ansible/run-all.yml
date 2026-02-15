@@ -1,0 +1,36 @@
+- hosts: localhost
+  tasks:
+
+    - name: terraform init
+      command: terraform init
+      args:
+        chdir: ../terraform
+
+    - name: terraform apply
+      command: >
+        terraform apply -auto-approve
+        -var "rg_name={{ rg_name }}"
+        -var "vm_name={{ vm_name }}"
+      args:
+        chdir: ../terraform
+
+    - name: get public ip
+      command: terraform output -raw public_ip
+      register: ip
+      args:
+        chdir: ../terraform
+
+    - name: create inventory
+      copy:
+        content: |
+          [web]
+          {{ ip.stdout }} ansible_user=azureuser ansible_password=Password1234!
+        dest: inventory.ini
+
+- hosts: web
+  become: yes
+  tasks:
+    - apt:
+        name: nginx
+        state: present
+        update_cache: yes
