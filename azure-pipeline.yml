@@ -7,7 +7,7 @@ parameters:
   type: string
 
 pool:
-  vmImage: New agent
+  vmImage: 'New agent'
 
 steps:
 
@@ -41,4 +41,5 @@ steps:
     echo "$IP ansible_user=azureuser ansible_password=Password1234!" >> inventory.ini
     ansible-playbook ansible/install-nginx.yml -i inventory.ini
   displayName: Configure VM
+
 
