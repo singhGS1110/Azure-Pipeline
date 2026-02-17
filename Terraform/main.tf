@@ -11,13 +11,17 @@ provider "azurerm" {
   features {}
 }
 
-# Resource group
+# -------------------------
+# Resource Group
+# -------------------------
 resource "azurerm_resource_group" "rg" {
   name     = var.rg_name
   location = var.location
 }
 
-# Virtual network (simple minimal)
+# -------------------------
+# Virtual Network
+# -------------------------
 resource "azurerm_virtual_network" "vnet" {
   name                = "demo-vnet"
   address_space       = ["10.0.0.0/16"]
@@ -25,7 +29,9 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
+# -------------------------
 # Subnet
+# -------------------------
 resource "azurerm_subnet" "subnet" {
   name                 = "default"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -33,16 +39,21 @@ resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Public IP
+# -------------------------
+# Public IP (MOST STABLE)
+# -------------------------
 resource "azurerm_public_ip" "pip" {
   name                = "demo-pip"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
+
+  allocation_method = "Dynamic"
+  sku               = "Basic"
 }
 
-# NIC
+# -------------------------
+# Network Interface
+# -------------------------
 resource "azurerm_network_interface" "nic" {
   name                = "demo-nic"
   location            = azurerm_resource_group.rg.location
@@ -56,7 +67,9 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
+# -------------------------
 # Linux VM
+# -------------------------
 resource "azurerm_linux_virtual_machine" "vm" {
   name                = var.vm_name
   computer_name       = "demovm"
@@ -64,8 +77,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
   location            = azurerm_resource_group.rg.location
   size                = var.vm_size
 
-  admin_username      = "azureuser"
-  admin_password      = "Password1234!"
+  admin_username = "azureuser"
+  admin_password = "Password1234!"
   disable_password_authentication = false
 
   network_interface_ids = [
@@ -85,6 +98,9 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 }
 
+# -------------------------
+# Output
+# -------------------------
 output "public_ip" {
   value = azurerm_public_ip.pip.ip_address
 }
