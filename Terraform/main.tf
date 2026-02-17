@@ -4,11 +4,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
-
-    time = {
-      source = "hashicorp/time"
-      version = "~> 0.9"
-    }
   }
 }
 
@@ -16,13 +11,13 @@ provider "azurerm" {
   features {}
 }
 
-# Resource Group
+# Resource group
 resource "azurerm_resource_group" "rg" {
   name     = var.rg_name
   location = var.location
 }
 
-# Virtual Network
+# Virtual network (simple minimal)
 resource "azurerm_virtual_network" "vnet" {
   name                = "demo-vnet"
   address_space       = ["10.0.0.0/16"]
@@ -30,20 +25,12 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# Wait for Azure network propagation
-resource "time_sleep" "wait_for_vnet" {
-  depends_on = [azurerm_virtual_network.vnet]
-  create_duration = "30s"
-}
-
 # Subnet
 resource "azurerm_subnet" "subnet" {
-  name                 = "demo-subnet"
+  name                 = "default"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
-
-  depends_on = [time_sleep.wait_for_vnet]
 }
 
 # Public IP
@@ -96,4 +83,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
     sku       = "22_04-lts"
     version   = "latest"
   }
+}
+
+output "public_ip" {
+  value = azurerm_public_ip.pip.ip_address
 }
