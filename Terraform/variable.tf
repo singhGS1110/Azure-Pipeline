@@ -7,9 +7,10 @@ variable "vm_name" {
 }
 
 variable "location" {
-  default = "South India"
+  default = "East US"
 }
 
 variable "vm_size" {
-  default = "Standard_DS1_v2"
+  default = "Standard_D2s_v3"
 }
+
