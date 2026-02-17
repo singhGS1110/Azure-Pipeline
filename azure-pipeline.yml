@@ -1,50 +1,90 @@
-trigger: none
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+  }
+}
 
-parameters:
-- name: rg_name
-  type: string
-- name: vm_name
-  type: string
+provider "azurerm" {
+  features {}
+}
 
-pool:
-  name: 'New agent'
+# Resource group
+resource "azurerm_resource_group" "rg" {
+  name     = var.rg_name
+  location = var.location
+}
 
-steps:
+# Virtual network (simple minimal)
+resource "azurerm_virtual_network" "vnet" {
+  name                = "demo-vnet"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
 
-- task: TerraformInstaller@1
-  inputs:
-    terraformVersion: latest
+# Subnet
+resource "azurerm_subnet" "subnet" {
+  name                 = "default"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.1.0/24"]
+}
 
+# Public IP
+resource "azurerm_public_ip" "pip" {
+  name                = "demo-pip"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
 
-# Terraform apply
-- script: |
-    terraform -chdir=$(Build.SourcesDirectory)/Terraform init
+# NIC
+resource "azurerm_network_interface" "nic" {
+  name                = "demo-nic"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
 
-    terraform -chdir=$(Build.SourcesDirectory)/Terraform apply -auto-approve \
-      -var "rg_name=${{ parameters.rg_name }}" \
-      -var "vm_name=${{ parameters.vm_name }}"
-  displayName: Terraform Apply
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.subnet.id
+    public_ip_address_id          = azurerm_public_ip.pip.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
 
+# Linux VM
+resource "azurerm_linux_virtual_machine" "vm" {
+  name                = var.vm_name
+  computer_name       = "demovm"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  size                = var.vm_size
 
-# Get IP
-- script: |
-    terraform -chdir=$(Build.SourcesDirectory)/Terraform output -raw public_ip > ip.txt
-  displayName: Get IP
+  admin_username      = "azureuser"
+  admin_password      = "Password1234!"
+  disable_password_authentication = false
 
+  network_interface_ids = [
+    azurerm_network_interface.nic.id
+  ]
 
-# Install ansible
-- script: |
-    sudo apt update
-    sudo apt install -y ansible
-  displayName: Install Ansible
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
 
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
+    version   = "latest"
+  }
+}
 
-# Configure VM
-- script: |
-    IP=$(cat ip.txt)
-
-    echo "[web]" > inventory.ini
-    echo "$IP ansible_user=azureuser ansible_password=Password1234!" >> inventory.ini
-
-    ansible-playbook Ansible/install-nginx.yml -i inventory.ini
-  displayName: Configure VM
+output "public_ip" {
+  value = azurerm_public_ip.pip.ip_address
+}
