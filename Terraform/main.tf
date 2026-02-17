@@ -4,6 +4,11 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 }
 
@@ -30,7 +35,16 @@ resource "azurerm_virtual_network" "vnet" {
 }
 
 # -----------------------------
-# Subnet (explicit dependency)
+# WAIT FOR AZURE NETWORK CONSISTENCY
+# (critical production fix)
+# -----------------------------
+resource "time_sleep" "wait_for_vnet" {
+  depends_on = [azurerm_virtual_network.vnet]
+  create_duration = "30s"
+}
+
+# -----------------------------
+# Subnet
 # -----------------------------
 resource "azurerm_subnet" "subnet" {
   name                 = "demo-subnet"
@@ -38,11 +52,11 @@ resource "azurerm_subnet" "subnet" {
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
 
-  depends_on = [azurerm_virtual_network.vnet]
+  depends_on = [time_sleep.wait_for_vnet]
 }
 
 # -----------------------------
-# Public IP (Standard must be Static)
+# Public IP
 # -----------------------------
 resource "azurerm_public_ip" "pip" {
   name                = "demo-pip"
@@ -107,7 +121,7 @@ resource "azurerm_network_interface" "nic" {
 }
 
 # -----------------------------
-# Associate NSG to NIC
+# NSG association
 # -----------------------------
 resource "azurerm_network_interface_security_group_association" "assoc" {
   network_interface_id      = azurerm_network_interface.nic.id
@@ -115,7 +129,7 @@ resource "azurerm_network_interface_security_group_association" "assoc" {
 }
 
 # -----------------------------
-# Linux Virtual Machine
+# Linux VM
 # -----------------------------
 resource "azurerm_linux_virtual_machine" "vm" {
   name                = var.vm_name
@@ -147,11 +161,4 @@ resource "azurerm_linux_virtual_machine" "vm" {
     sku       = "22_04-lts"
     version   = "latest"
   }
-}
-
-# -----------------------------
-# Output Public IP
-# -----------------------------
-output "public_ip" {
-  value = azurerm_public_ip.pip.ip_address
 }
