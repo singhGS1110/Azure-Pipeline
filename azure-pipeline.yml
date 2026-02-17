@@ -11,15 +11,6 @@ pool:
 
 steps:
 
-# DEBUG — remove later
-- script: |
-    echo "===== REPO STRUCTURE ====="
-    pwd
-    ls -R
-  displayName: Show repo files
-
-
-# Install Terraform
 - task: TerraformInstaller@1
   inputs:
     terraformVersion: latest
@@ -27,9 +18,9 @@ steps:
 
 # Terraform apply
 - script: |
-    terraform -chdir=$(Build.SourcesDirectory)/terraform init
+    terraform -chdir=$(Build.SourcesDirectory)/Terraform init
 
-    terraform -chdir=$(Build.SourcesDirectory)/terraform apply -auto-approve \
+    terraform -chdir=$(Build.SourcesDirectory)/Terraform apply -auto-approve \
       -var "rg_name=${{ parameters.rg_name }}" \
       -var "vm_name=${{ parameters.vm_name }}"
   displayName: Terraform Apply
@@ -37,11 +28,11 @@ steps:
 
 # Get IP
 - script: |
-    terraform -chdir=$(Build.SourcesDirectory)/terraform output -raw public_ip > ip.txt
+    terraform -chdir=$(Build.SourcesDirectory)/Terraform output -raw public_ip > ip.txt
   displayName: Get IP
 
 
-# Install Ansible
+# Install ansible
 - script: |
     sudo apt update
     sudo apt install -y ansible
@@ -55,5 +46,5 @@ steps:
     echo "[web]" > inventory.ini
     echo "$IP ansible_user=azureuser ansible_password=Password1234!" >> inventory.ini
 
-    ansible-playbook ansible/install-nginx.yml -i inventory.ini
+    ansible-playbook Ansible/install-nginx.yml -i inventory.ini
   displayName: Configure VM
