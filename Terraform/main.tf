@@ -6,7 +6,7 @@ terraform {
     }
 
     time = {
-      source  = "hashicorp/time"
+      source = "hashicorp/time"
       version = "~> 0.9"
     }
   }
@@ -16,17 +16,13 @@ provider "azurerm" {
   features {}
 }
 
-# -----------------------------
 # Resource Group
-# -----------------------------
 resource "azurerm_resource_group" "rg" {
   name     = var.rg_name
   location = var.location
 }
 
-# -----------------------------
 # Virtual Network
-# -----------------------------
 resource "azurerm_virtual_network" "vnet" {
   name                = "demo-vnet"
   address_space       = ["10.0.0.0/16"]
@@ -34,18 +30,13 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# -----------------------------
-# WAIT FOR AZURE NETWORK CONSISTENCY
-# (critical production fix)
-# -----------------------------
+# Wait for Azure network propagation
 resource "time_sleep" "wait_for_vnet" {
   depends_on = [azurerm_virtual_network.vnet]
   create_duration = "30s"
 }
 
-# -----------------------------
 # Subnet
-# -----------------------------
 resource "azurerm_subnet" "subnet" {
   name                 = "demo-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -55,9 +46,7 @@ resource "azurerm_subnet" "subnet" {
   depends_on = [time_sleep.wait_for_vnet]
 }
 
-# -----------------------------
 # Public IP
-# -----------------------------
 resource "azurerm_public_ip" "pip" {
   name                = "demo-pip"
   location            = azurerm_resource_group.rg.location
@@ -66,51 +55,11 @@ resource "azurerm_public_ip" "pip" {
   sku                 = "Standard"
 }
 
-# -----------------------------
-# Network Security Group
-# -----------------------------
-resource "azurerm_network_security_group" "nsg" {
-  name                = "demo-nsg"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1000
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "HTTP"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-}
-
-# -----------------------------
-# Network Interface
-# -----------------------------
+# NIC
 resource "azurerm_network_interface" "nic" {
   name                = "demo-nic"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-
-  depends_on = [
-    azurerm_subnet.subnet,
-    azurerm_public_ip.pip
-  ]
 
   ip_configuration {
     name                          = "internal"
@@ -120,17 +69,7 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
-# -----------------------------
-# NSG association
-# -----------------------------
-resource "azurerm_network_interface_security_group_association" "assoc" {
-  network_interface_id      = azurerm_network_interface.nic.id
-  network_security_group_id = azurerm_network_security_group.nsg.id
-}
-
-# -----------------------------
 # Linux VM
-# -----------------------------
 resource "azurerm_linux_virtual_machine" "vm" {
   name                = var.vm_name
   computer_name       = "demovm"
@@ -144,10 +83,6 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   network_interface_ids = [
     azurerm_network_interface.nic.id
-  ]
-
-  depends_on = [
-    azurerm_network_interface_security_group_association.assoc
   ]
 
   os_disk {
